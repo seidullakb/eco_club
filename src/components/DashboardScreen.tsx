@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../contexts/ThemeContext';
+import { supabase } from '../lib/supabase'; // Импортируем связь с базой
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -31,7 +32,28 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  // Создаем состояние для хранения реальных цифр из базы
+  const [stats, setStats] = useState({ 
+    total_kzt: 0, 
+    recycled_kg: 0, 
+    active_projects: 0 
+  });
+
   useEffect(() => {
+    // Функция для получения данных из Supabase
+    const fetchStats = async () => {
+      const { data, error } = await supabase
+        .from('impact_stats')
+        .select('*')
+        .single(); // Берем одну строку с данными
+      
+      if (data && !error) {
+        setStats(data); // Обновляем цифры на экране
+      }
+    };
+
+    fetchStats();
+
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -75,10 +97,9 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
       </header>
 
       <main className="flex-1 px-6 py-4 space-y-8">
-        {/* Hero KPI Card - Bilim-Innovation Style */}
+        {/* Hero KPI Card */}
         <section className="relative">
           <div className="bg-[var(--color-accent)] p-8 rounded-[40px] text-[var(--color-bg-main)] relative overflow-hidden shadow-2xl shadow-[var(--color-accent)]/20 group">
-            {/* Background Pattern */}
             <div className="absolute inset-0 geometric-green opacity-10 pointer-events-none" />
             <div className="absolute -top-12 -right-12 w-48 h-48 bg-[var(--color-bg-main)]/20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
             
@@ -87,7 +108,8 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">{t('dash.totalFund')}</p>
                   <h3 className="text-4xl font-black tracking-tighter">
-                    2,450,000 <span className="text-sm font-normal opacity-60">KZT</span>
+                    {/* ЖИВАЯ ЦИФРА: Сумма из базы */}
+                    {stats.total_kzt.toLocaleString()} <span className="text-sm font-normal opacity-60">KZT</span>
                   </h3>
                 </div>
                 <div className="bg-[var(--color-bg-main)]/20 p-2 rounded-xl backdrop-blur-md">
@@ -98,7 +120,8 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-[var(--color-bg-main)]/5 backdrop-blur-sm p-4 rounded-3xl border border-[var(--color-bg-main)]/10">
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">{t('dash.activeProjects')}</p>
-                  <p className="text-xl font-black">12</p>
+                  {/* ЖИВАЯ ЦИФРА: Проекты */}
+                  <p className="text-xl font-black">{stats.active_projects}</p>
                 </div>
                 <div className="bg-[var(--color-bg-main)]/5 backdrop-blur-sm p-4 rounded-3xl border border-[var(--color-bg-main)]/10">
                   <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">{t('dash.impactScore')}</p>
@@ -117,7 +140,7 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
           </div>
         </section>
 
-        {/* Quick Stats Grid - Bento Style */}
+        {/* Quick Stats Grid */}
         <section>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[var(--color-text-main)] font-black flex items-center gap-2 uppercase tracking-tight">
@@ -129,7 +152,8 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
             <StatCard 
               icon={<Leaf size={20} />} 
               label={t('dash.recycled')} 
-              value="125kg" 
+              /* ЖИВАЯ ЦИФРА: Переработка */
+              value={`${stats.recycled_kg}kg`} 
               trend="+12%" 
               color="bg-[var(--color-accent)]/10" 
               textColor="text-[var(--color-text-main)]"
@@ -161,7 +185,7 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
           </div>
         </section>
 
-        {/* Recent Activity Feed */}
+        {/* Остальные секции (Activity Feed, Milestone) остаются без изменений */}
         <section>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[var(--color-text-main)] font-black flex items-center gap-2 uppercase tracking-tight">
@@ -200,7 +224,6 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
           </div>
         </section>
 
-        {/* Decorative Milestone Strip */}
         <div className="bg-[var(--color-card-bg)] p-6 rounded-[40px] border border-[var(--color-border)] flex items-center justify-between group cursor-pointer hover:opacity-80 transition-all">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-bg-main)] shadow-lg">
@@ -261,6 +284,7 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
   );
 }
 
+// Вспомогательные компоненты StatCard, ActivityCard, NotificationItem остаются прежними
 function StatCard({ icon, label, value, trend, color, textColor }: any) {
   return (
     <div className="bg-[var(--color-card-bg)] p-5 rounded-[32px] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-all group">
