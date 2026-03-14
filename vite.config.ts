@@ -12,3 +12,10 @@ export default defineConfig({
     host: '0.0.0.0',
   },
 });
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 1000, // This increases the limit from 500kb to 1000kb
+  },
+})
