@@ -1,23 +1,45 @@
 import { ArrowLeft, Share2, Trophy, FileText, Recycle, GraduationCap, FlaskConical, Brush, Dribbble, Music, Users, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useTheme } from '../contexts/ThemeContext';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+
+interface Challenger {
+  uid: string;
+  name: string;
+  ecoBalance: number;
+  class: string;
+  pickups: number;
+  rank?: number;
+}
 
 export default function RankingsScreen({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const { darkMode, t } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [challengers, setChallengers] = useState<Challenger[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const challengers = [
-    { rank: 2, name: "Class 10B", weight: 950, paper: 400, plastic: 550, icon: <GraduationCap size={20} />, trend: "up" },
-    { rank: 3, name: "Class 10A", weight: 820, paper: 320, plastic: 500, icon: <FlaskConical size={20} />, trend: "up" },
-    { rank: 4, name: "Class 7C", weight: 745, paper: 300, plastic: 445, icon: <Brush size={20} />, trend: "down" },
-    { rank: 5, name: "Class 8B", weight: 610, paper: 200, plastic: 410, icon: <Dribbble size={20} />, trend: "flat" },
-    { rank: 6, name: "Class 9C", weight: 580, paper: 280, plastic: 300, icon: <Music size={20} />, trend: "up" },
-  ];
+  useEffect(() => {
+    const q = query(collection(db, 'users'), orderBy('ecoBalance', 'desc'), limit(50));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const users = snapshot.docs.map((doc, index) => ({
+        uid: doc.id,
+        ...(doc.data() as any),
+        rank: index + 1
+      }));
+      setChallengers(users);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const filteredChallengers = challengers.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+    c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.class?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const topChallenger = challengers[0];
 
   return (
     <div className="pb-24 flex flex-col min-h-full font-display bg-[var(--color-bg-main)] text-[var(--color-text-main)]">
@@ -81,7 +103,7 @@ export default function RankingsScreen({ onNavigate }: { onNavigate: (tab: strin
 
       <main className="flex-1 px-4 space-y-6 relative z-10">
         {/* Top Rank Card */}
-        {!searchQuery && (
+        {!searchQuery && topChallenger && (
           <div className="relative w-full rounded-[40px] overflow-hidden mt-2 group border border-[var(--color-border)] shadow-2xl bg-[var(--color-card-bg)]">
             <div className="absolute top-0 right-0 p-6 z-10">
               <div className="bg-[var(--color-accent)] text-[var(--color-bg-main)] text-[10px] font-black px-4 py-2 rounded-full flex items-center gap-2 shadow-xl uppercase tracking-widest">
@@ -92,20 +114,20 @@ export default function RankingsScreen({ onNavigate }: { onNavigate: (tab: strin
             
             <div className="relative h-40 w-full">
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg-main)] via-[var(--color-bg-main)]/50 to-transparent z-10"></div>
-              <img src="https://images.unsplash.com/photo-1528323273322-d81458248d40?q=80&w=800&auto=format&fit=crop" alt="Students" className="w-full h-full object-cover" />
+              <img src={`https://i.pravatar.cc/400?u=${topChallenger.uid}`} alt="Leader" className="w-full h-full object-cover" />
             </div>
             
             <div className="relative z-20 px-5 pb-5 -mt-12">
               <div className="flex justify-between items-end mb-3">
                 <div>
-                  <h2 className="text-3xl font-black text-[var(--color-text-main)] mb-1">Class 9A</h2>
+                  <h2 className="text-3xl font-black text-[var(--color-text-main)] mb-1">{topChallenger.name}</h2>
                   <p className="text-[var(--color-accent)] text-xs font-bold flex items-center gap-1 uppercase tracking-wide">
-                    The Golden Aura Champions
+                    {topChallenger.class || "New Explorer"}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-black text-[var(--color-text-main)]">1,250</p>
-                  <p className="text-[var(--color-text-main)]/40 text-[10px] font-black uppercase tracking-widest">{t('rank.totalKg')}</p>
+                  <p className="text-3xl font-black text-[var(--color-text-main)]">{topChallenger.ecoBalance}</p>
+                  <p className="text-[var(--color-text-main)]/40 text-[10px] font-black uppercase tracking-widest">Points</p>
                 </div>
               </div>
               
@@ -113,23 +135,10 @@ export default function RankingsScreen({ onNavigate }: { onNavigate: (tab: strin
               <div className="grid grid-cols-2 gap-3 mt-4">
                 <div className="bg-[var(--color-bg-main)]/50 backdrop-blur-sm rounded-2xl p-3 border border-[var(--color-border)]">
                   <div className="flex items-center gap-2 mb-1">
-                    <FileText size={16} className="text-[var(--color-text-main)]" />
-                    <span className="text-[var(--color-text-main)]/60 text-[10px] font-bold uppercase tracking-wider">{t('rank.paper')}</span>
-                  </div>
-                  <p className="text-[var(--color-text-main)] font-black text-lg">680 <span className="text-xs font-normal text-[var(--color-text-main)]/40">kg</span></p>
-                  <div className="w-full bg-[var(--color-bg-main)]/20 h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div className="bg-[var(--color-text-main)] h-full rounded-full" style={{ width: '75%' }}></div>
-                  </div>
-                </div>
-                <div className="bg-[var(--color-bg-main)]/50 backdrop-blur-sm rounded-2xl p-3 border border-[var(--color-border)]">
-                  <div className="flex items-center gap-2 mb-1">
                     <Recycle size={16} className="text-[var(--color-accent)]" />
-                    <span className="text-[var(--color-text-main)]/60 text-[10px] font-bold uppercase tracking-wider">{t('rank.plastic')}</span>
+                    <span className="text-[var(--color-text-main)]/60 text-[10px] font-bold uppercase tracking-wider">Pickups</span>
                   </div>
-                  <p className="text-[var(--color-text-main)] font-black text-lg">570 <span className="text-xs font-normal text-[var(--color-text-main)]/40">kg</span></p>
-                  <div className="w-full bg-[var(--color-bg-main)]/20 h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div className="bg-[var(--color-accent)] h-full rounded-full" style={{ width: '60%' }}></div>
-                  </div>
+                  <p className="text-[var(--color-text-main)] font-black text-lg">{topChallenger.pickups} <span className="text-xs font-normal text-[var(--color-text-main)]/40">times</span></p>
                 </div>
               </div>
             </div>
@@ -147,11 +156,16 @@ export default function RankingsScreen({ onNavigate }: { onNavigate: (tab: strin
         {/* List Items */}
         <div className="space-y-3">
           {filteredChallengers.map((item) => (
-            <RankItem key={item.rank} {...item} />
+            <RankItem key={item.uid} {...item} />
           ))}
-          {filteredChallengers.length === 0 && (
+          {filteredChallengers.length === 0 && !loading && (
             <div className="text-center py-12">
               <p className="text-[var(--color-text-main)]/20 font-black uppercase tracking-widest text-sm">{t('rank.noresults')}</p>
+            </div>
+          )}
+          {loading && (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-2 border-[var(--color-accent)]/20 border-t-[var(--color-accent)] rounded-full animate-spin" />
             </div>
           )}
         </div>
@@ -160,13 +174,7 @@ export default function RankingsScreen({ onNavigate }: { onNavigate: (tab: strin
   );
 }
 
-function RankItem({ rank, name, weight, paper, plastic, icon, trend }: any) {
-  const getTrendIcon = () => {
-    if (trend === 'up') return <span className="text-[10px] text-[var(--color-accent)] font-black">▲</span>;
-    if (trend === 'down') return <span className="text-[10px] text-red-400 font-black">▼</span>;
-    return <span className="text-[10px] text-[var(--color-text-main)]/30 font-black">-</span>;
-  };
-
+function RankItem({ rank, name, ecoBalance, class: userClass, uid }: any) {
   return (
     <motion.div 
       whileTap={{ scale: 0.98 }}
@@ -174,27 +182,21 @@ function RankItem({ rank, name, weight, paper, plastic, icon, trend }: any) {
     >
       <div className="flex-shrink-0 w-8 flex flex-col items-center justify-center">
         <span className={`text-xl font-black ${rank <= 3 ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-main)]/40'}`}>{rank}</span>
-        {getTrendIcon()}
       </div>
-      <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-[var(--color-bg-main)]/50 border border-[var(--color-border)] flex items-center justify-center overflow-hidden text-[var(--color-text-main)]/60">
-        {icon}
+      <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-[var(--color-bg-main)]/50 border border-[var(--color-border)] flex items-center justify-center overflow-hidden">
+        <img src={`https://i.pravatar.cc/150?u=${uid}`} alt={name} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline mb-1">
           <h4 className="text-[var(--color-text-main)] font-bold truncate">{name}</h4>
-          <span className="text-[var(--color-text-main)] font-black text-lg">{weight} <span className="text-xs text-[var(--color-text-main)]/40 font-normal">kg</span></span>
+          <span className="text-[var(--color-text-main)] font-black text-lg">{ecoBalance} <span className="text-xs text-[var(--color-text-main)]/40 font-normal">pts</span></span>
         </div>
-        {rank <= 3 ? (
-          <div className="flex items-center gap-3 text-[10px] text-[var(--color-text-main)]/40 font-bold uppercase tracking-wider">
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-main)]"></span> {paper}kg Paper</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"></span> {plastic}kg Plastic</span>
-          </div>
-        ) : (
-          <div className="w-full bg-[var(--color-bg-main)]/20 h-1 rounded-full overflow-hidden">
-            <div className="bg-gradient-to-r from-[var(--color-text-main)] to-[var(--color-accent)] h-full" style={{ width: `${(weight / 1250) * 100}%` }}></div>
-          </div>
-        )}
+        <div className="text-[10px] text-[var(--color-text-main)]/40 font-bold uppercase tracking-wider">
+          {userClass || "New Explorer"}
+        </div>
       </div>
     </motion.div>
   );
 }
+
+

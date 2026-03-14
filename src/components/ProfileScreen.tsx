@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 
 export default function ProfileScreen({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const { darkMode, t } = useTheme();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const achievements = [
     { id: 1, title: "Early Adopter", icon: "🚀", color: "bg-forest/10" },
     { id: 2, title: "Paper King", icon: "📄", color: "bg-sage/20" },
@@ -21,23 +21,23 @@ export default function ProfileScreen({ onNavigate }: { onNavigate: (tab: string
         <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-[var(--color-accent)]/10 to-transparent"></div>
         <div className="relative">
           <div className="w-24 h-24 rounded-full border-4 border-[var(--color-accent)] p-1 shadow-lg">
-            <img src="https://i.pravatar.cc/150?img=32" alt="Profile" className="w-full h-full object-cover rounded-full" />
+            <img src={user?.photoURL || `https://i.pravatar.cc/150?u=${user?.uid}`} alt="Profile" className="w-full h-full object-cover rounded-full" />
           </div>
           <div className="absolute bottom-0 right-0 bg-[var(--color-accent)] text-[var(--color-bg-main)] p-1.5 rounded-full border-2 border-[var(--color-bg-main)]">
             <ShieldCheck size={16} />
           </div>
         </div>
-        <h2 className="mt-4 text-2xl font-black text-[var(--color-text-main)]">{user?.displayName || 'Eco Warrior'}</h2>
-        <p className="text-[var(--color-text-secondary)] text-sm font-bold uppercase tracking-wider">{user?.email}</p>
+        <h2 className="mt-4 text-2xl font-black text-[var(--color-text-main)]">{userProfile?.name || user?.displayName || 'Eco Warrior'}</h2>
+        <p className="text-[var(--color-text-secondary)] text-sm font-bold uppercase tracking-wider">{userProfile?.class || 'New Explorer'}</p>
         
         <div className="flex gap-4 mt-6">
           <div className="bg-[var(--color-card-bg)] px-4 py-2 rounded-2xl border border-[var(--color-border)] text-center shadow-sm">
-            <p className="text-[var(--color-text-main)] font-black text-lg">1,250</p>
-            <p className="text-[10px] text-[var(--color-text-secondary)] uppercase font-black tracking-widest">Total XP</p>
+            <p className="text-[var(--color-text-main)] font-black text-lg">{userProfile?.ecoBalance || 0}</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] uppercase font-black tracking-widest">Eco Balance</p>
           </div>
           <div className="bg-[var(--color-card-bg)] px-4 py-2 rounded-2xl border border-[var(--color-border)] text-center shadow-sm">
-            <p className="text-[var(--color-text-main)] font-black text-lg">#42</p>
-            <p className="text-[10px] text-[var(--color-text-secondary)] uppercase font-black tracking-widest">Global Rank</p>
+            <p className="text-[var(--color-text-main)] font-black text-lg">{userProfile?.pickups || 0}</p>
+            <p className="text-[10px] text-[var(--color-text-secondary)] uppercase font-black tracking-widest">Pickups</p>
           </div>
           <div className="bg-[var(--color-card-bg)] px-4 py-2 rounded-2xl border border-[var(--color-border)] text-center shadow-sm">
             <p className="text-[var(--color-text-main)] font-black text-lg">12</p>
