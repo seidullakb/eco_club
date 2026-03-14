@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Settings, Recycle, ChevronDown, FileText, GlassWater, Upload, Camera, ShieldCheck, Loader2, Sparkles, BarChart3, Lock, Unlock, DollarSign } from 'lucide-react';
+import { ArrowLeft, Settings, Recycle, ChevronDown, FileText, GlassWater, Upload, Camera, ShieldCheck, Loader2, Sparkles, BarChart3, DollarSign } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import CoinFlyAnimation from './CoinFlyAnimation';
 import { useCollectingAnimation } from '../hooks/useCollectingAnimation';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
-export default function AdminScreen({ onNavigate }: { onNavigate: (tab: string) => void }) {
+export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const { darkMode, t } = useTheme();
+  const { user, userProfile } = useAuth();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [photoUploaded, setPhotoUploaded] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState('paper');
-  const [isProtected, setIsProtected] = useState(true);
-  const [pin, setPin] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [weight, setWeight] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { animate: triggerCoins, isAnimating: isCoinAnimating, startPos } = useCollectingAnimation();
 
@@ -43,79 +46,44 @@ export default function AdminScreen({ onNavigate }: { onNavigate: (tab: string) 
     }
   };
 
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === '1234') {
-      setIsProtected(false);
-    } else {
-      alert('Invalid PIN. Hint: 1234');
-      setPin('');
+    if (!weight || !photoUploaded || !user) return;
+
+    setIsSubmitting(true);
+    try {
+      // Save to submissions collection
+      await addDoc(collection(db, 'submissions'), {
+        userId: user.uid,
+        userName: user.displayName || userProfile?.name || 'Anonymous',
+        userClass: userProfile?.class || 'Unknown',
+        amountKg: parseFloat(weight),
+        type: selectedMaterial,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        timestamp: serverTimestamp()
+      });
+
+      // Get button position for animation start
+      const rect = (e.target as HTMLFormElement).getBoundingClientRect();
+      triggerCoins({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+
+      setShowSuccess(true);
+
+      setTimeout(() => {
+        setShowSuccess(false);
+        setWeight('');
+        setPhotoUploaded(false);
+        setAiResult(null);
+        onNavigate('home');
+      }, 3000);
+    } catch (error) {
+      console.error("Error submitting:", error);
+      alert("Failed to submit. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!weight || !photoUploaded) return;
-
-    // Get button position for animation start
-    const rect = (e.target as HTMLFormElement).getBoundingClientRect();
-    triggerCoins({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-
-    setShowSuccess(true);
-
-    setTimeout(() => {
-      setShowSuccess(false);
-      setWeight('');
-      setPhotoUploaded(false);
-      setAiResult(null);
-    }, 3000);
-  };
-
-  if (isProtected) {
-    return (
-      <div className="min-h-full bg-[var(--color-bg-main)] flex flex-col items-center justify-center p-6 text-[var(--color-text-main)]">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="w-full max-w-xs text-center space-y-8"
-        >
-          <div className="w-20 h-20 bg-[var(--color-card-bg)] rounded-[32px] flex items-center justify-center mx-auto mb-4 border border-[var(--color-border)]">
-            <Lock size={40} className="text-[var(--color-accent)]" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black uppercase tracking-tight">Admin Access</h2>
-            <p className="text-[var(--color-text-secondary)] text-xs font-bold uppercase tracking-widest">Enter Secure PIN to Continue</p>
-          </div>
-          <form onSubmit={handlePinSubmit} className="space-y-4">
-            <input 
-              type="password" 
-              maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="••••"
-              className="w-full h-20 bg-[var(--color-card-bg)] border-2 border-[var(--color-border)] rounded-[32px] text-center text-4xl font-black tracking-[1em] focus:border-[var(--color-accent)] focus:bg-[var(--color-card-bg)] focus:outline-none transition-all placeholder:text-[var(--color-text-main)]/10 text-[var(--color-text-main)]"
-              autoFocus
-            />
-            <button 
-              type="submit"
-              className="w-full h-16 bg-[var(--color-accent)] text-[var(--color-bg-main)] font-black uppercase tracking-widest rounded-[32px] hover:opacity-90 transition-all active:scale-95"
-            >
-              Unlock Dashboard
-            </button>
-          </form>
-          <div className="flex flex-col gap-4">
-            <p className="text-[10px] text-[var(--color-text-secondary)] font-bold uppercase tracking-widest">Authorized Personnel Only</p>
-            <button 
-              onClick={() => onNavigate('home')}
-              className="text-[var(--color-text-main)]/60 hover:text-[var(--color-text-main)] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"
-            >
-              <ArrowLeft size={14} /> Back to Home
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="pb-24 flex flex-col min-h-full font-display bg-[var(--color-bg-main)] text-[var(--color-text-main)] relative overflow-hidden">
@@ -142,26 +110,9 @@ export default function AdminScreen({ onNavigate }: { onNavigate: (tab: string) 
               <div className="w-32 h-32 bg-[var(--color-accent)] rounded-[48px] flex items-center justify-center mb-6 shadow-2xl shadow-[var(--color-accent)]/40">
                 <ShieldCheck size={64} className="text-[var(--color-bg-main)]" />
               </div>
-              {/* Floating Money Icons */}
-              {[...Array(6)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ y: 0, opacity: 1 }}
-                  animate={{ 
-                    y: -200, 
-                    x: (i % 2 === 0 ? 1 : -1) * (Math.random() * 100),
-                    opacity: 0,
-                    rotate: Math.random() * 360
-                  }}
-                  transition={{ duration: 2, delay: i * 0.2 }}
-                  className="absolute top-0 left-1/2 text-[var(--color-accent)]"
-                >
-                  <DollarSign size={32} />
-                </motion.div>
-              ))}
             </motion.div>
-            <h2 className="text-4xl font-black text-[var(--color-text-main)] uppercase tracking-tight mb-2">Impact Logged!</h2>
-            <p className="text-[var(--color-accent)] font-black text-xl uppercase tracking-widest">+{parseFloat(weight) * 50} KZT EARNED</p>
+            <h2 className="text-4xl font-black text-[var(--color-text-main)] uppercase tracking-tight mb-2">Submitted!</h2>
+            <p className="text-[var(--color-accent)] font-black text-xl uppercase tracking-widest">Waiting for mentor approval</p>
             <p className="text-[var(--color-text-secondary)] text-sm mt-4 font-bold uppercase tracking-widest">Redirecting to Dashboard...</p>
           </motion.div>
         )}
@@ -176,7 +127,7 @@ export default function AdminScreen({ onNavigate }: { onNavigate: (tab: string) 
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-lg font-black tracking-tight uppercase text-[var(--color-bg-main)] relative z-10">Intelligence Hub</h1>
+        <h1 className="text-lg font-black tracking-tight uppercase text-[var(--color-bg-main)] relative z-10">Submit Recycling</h1>
         <button 
           onClick={() => onNavigate('settings')}
           className="text-[var(--color-bg-main)] hover:bg-[var(--color-bg-main)]/10 transition-colors flex items-center justify-center w-10 h-10 rounded-full relative z-10"

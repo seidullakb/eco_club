@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (optional)
+    //   - name: string (optional)
+    //   - class: string (optional)
+    //   - ecoBalance: number (required)
+    //   - pickups: number (required)
+    //   - updatedAt: string (optional)
+    //
+    // Collection: stats
+    // Document ID: impact
+    // Fields:
+    //   - total_kzt: number (required)
+    //   - recycled_kg: number (required)
+    //   - active_projects: number (required)
+    //   - trees_planted: number (required)
+    //   - co2_saved: number (required)
+    //
+    // Collection: stats
+    // Document ID: leaderboard_meta
+    // Fields:
+    //   - total_users: number (required)
+    //   - total_pickups: number (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
+    function isMentorOrAdmin() {
+      return hasRole('mentor') || hasRole('admin') || 
+             (request.auth.token.email == "seidullakb@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isAdmin() {
+      return hasRole('admin') || 
+             (request.auth.token.email == "seidullakb@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'ecoBalance', 'pickups', 'role']) &&
+             data.uid is string &&
+             data.ecoBalance is number &&
+             data.pickups is number &&
+             data.role in ['student', 'mentor', 'admin'];
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['userId', 'amountKg', 'status', 'createdAt']) &&
+             data.userId is string &&
+             data.amountKg is number &&
+             data.status in ['pending', 'approved', 'rejected'];
+    }
+
+    function isValidImpactStats(data) {
+      return data.keys().hasAll(['total_kzt', 'recycled_kg', 'active_projects', 'trees_planted', 'co2_saved']) &&
+             data.total_kzt is number &&
+             data.recycled_kg is number &&
+             data.active_projects is number &&
+             data.trees_planted is number &&
+             data.co2_saved is number;
+    }
+
+    function isValidLeaderboardMeta(data) {
+      return data.keys().hasAll(['total_users', 'total_pickups']) &&
+             data.total_users is number &&
+             data.total_pickups is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'student';
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isMentorOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /submissions/{submissionId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isMentorOrAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update, delete: if isMentorOrAdmin();
+    }
+
+    match /stats/impact {
+      allow read: if true;
+      allow write: if isMentorOrAdmin();
+    }
+
+    match /stats/leaderboard_meta {
+      allow read: if true;
+      allow write: if isMentorOrAdmin();
+    }
+  }
+}

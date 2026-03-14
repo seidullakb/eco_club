@@ -8,6 +8,7 @@ interface UserProfile {
   email: string | null;
   name: string | null;
   class: string | null;
+  role: 'student' | 'mentor' | 'admin';
   ecoBalance: number;
   pickups: number;
   updatedAt: string;
@@ -35,23 +36,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const bootstrapStats = async () => {
       try {
-        const impactDoc = await getDoc(doc(db, 'stats', 'impact'));
-        if (!impactDoc.exists()) {
-          await setDoc(doc(db, 'stats', 'impact'), {
-            total_kzt: 0,
-            recycled_kg: 0,
-            active_projects: 0,
-            trees_planted: 0,
-            co2_saved: 0
-          });
-        }
-        const metaDoc = await getDoc(doc(db, 'stats', 'leaderboard_meta'));
-        if (!metaDoc.exists()) {
-          await setDoc(doc(db, 'stats', 'leaderboard_meta'), {
-            total_users: 0,
-            total_pickups: 0
-          });
-        }
+        // Initialize impact stats with zeros if they don't exist
+        await setDoc(doc(db, 'stats', 'impact'), {
+          total_kzt: 0,
+          recycled_kg: 0,
+          active_projects: 0,
+          trees_planted: 0,
+          co2_saved: 0
+        }, { merge: true });
+
+        // Initialize leaderboard meta if it doesn't exist
+        await setDoc(doc(db, 'stats', 'leaderboard_meta'), {
+          total_users: 0,
+          total_pickups: 0
+        }, { merge: true });
       } catch (error) {
         console.error("Error bootstrapping stats:", error);
       }
@@ -77,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: firebaseUser.email,
               name: firebaseUser.displayName,
               class: null,
+              role: 'student',
               ecoBalance: 0,
               pickups: 0,
               updatedAt: new Date().toISOString()

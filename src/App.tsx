@@ -7,7 +7,8 @@ import { useState } from 'react';
 import DashboardScreen from './components/DashboardScreen';
 import RankingsScreen from './components/RankingsScreen';
 import JourneyScreen from './components/JourneyScreen';
-import AdminScreen from './components/AdminScreen';
+import SubmissionScreen from './components/SubmissionScreen';
+import PendingSubmissionsScreen from './components/PendingSubmissionsScreen';
 import ProfileScreen from './components/ProfileScreen';
 import StatsScreen from './components/StatsScreen';
 import ContactScreen from './components/ContactScreen';
@@ -17,11 +18,13 @@ import BottomNav from './components/BottomNav';
 import ProtectedRoute from './components/ProtectedRoute';
 
 import { useTheme } from './contexts/ThemeContext';
+import { useAuth } from './contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
-  const { darkMode, language, t } = useTheme();
+  const { darkMode, t } = useTheme();
+  const { userProfile } = useAuth();
 
   const getBgColor = () => {
     return 'bg-[var(--color-bg-main)]';
@@ -57,7 +60,8 @@ export default function App() {
               {activeTab === 'home' && <DashboardScreen onNavigate={navigateTo} />}
               {activeTab === 'rankings' && <RankingsScreen onNavigate={navigateTo} />}
               {activeTab === 'journey' && <JourneyScreen onNavigate={navigateTo} />}
-              {activeTab === 'admin' && <AdminScreen onNavigate={navigateTo} />}
+              {activeTab === 'submit' && <SubmissionScreen onNavigate={navigateTo} />}
+              {activeTab === 'approvals' && <PendingSubmissionsScreen onNavigate={navigateTo} />}
               {activeTab === 'profile' && <ProfileScreen onNavigate={navigateTo} />}
               {activeTab === 'stats' && <StatsScreen onNavigate={navigateTo} />}
               {activeTab === 'contact' && <ContactScreen onBack={() => setActiveTab('profile')} />}

@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "class": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "mentor", "admin"] },
+        "ecoBalance": { "type": "number" },
+        "pickups": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "ecoBalance", "pickups", "role"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Trash/recycling submission",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userClass": { "type": "string" },
+        "amountKg": { "type": "number" },
+        "type": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amountKg", "status", "createdAt"]
+    },
+    "ImpactStats": {
+      "title": "ImpactStats",
+      "description": "Global impact statistics",
+      "type": "object",
+      "properties": {
+        "total_kzt": { "type": "number" },
+        "recycled_kg": { "type": "number" },
+        "active_projects": { "type": "number" },
+        "trees_planted": { "type": "number" },
+        "co2_saved": { "type": "number" }
+      },
+      "required": ["total_kzt", "recycled_kg", "active_projects", "trees_planted", "co2_saved"]
+    },
+    "LeaderboardMeta": {
+      "title": "LeaderboardMeta",
+      "description": "Metadata for the leaderboard",
+      "type": "object",
+      "properties": {
+        "total_users": { "type": "number" },
+        "total_pickups": { "type": "number" }
+      },
+      "required": ["total_users", "total_pickups"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Trash submissions"
+    },
+    "stats/impact": {
+      "schema": "ImpactStats",
+      "description": "Global impact stats"
+    },
+    "stats/leaderboard_meta": {
+      "schema": "LeaderboardMeta",
+      "description": "Leaderboard metadata"
+    }
+  }
+}

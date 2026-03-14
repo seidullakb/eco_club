@@ -39,7 +39,7 @@ interface ImpactStats {
 
 export default function DashboardScreen({ onNavigate }: DashboardProps) {
   const { darkMode, t } = useTheme();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [stats, setStats] = useState<ImpactStats>({
@@ -81,7 +81,9 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{t('dash.welcome')}</p>
-              <h2 className="text-lg font-black tracking-tight">{userProfile?.name || t('dash.user')}</h2>
+              <h2 className="text-lg font-black tracking-tight">
+                {user?.displayName?.split(' ')[0] || userProfile?.name?.split(' ')[0] || t('dash.user')}
+              </h2>
             </div>
           </div>
           <div className="flex items-center gap-2">
