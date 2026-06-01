@@ -19,32 +19,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const isInIframe = window.self !== window.top;
 
-  const openInNewTab = () => {
-    window.open(window.location.href, '_blank');
-  };
-
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Reset auth state to prevent "Pending promise was never set" internal errors
-      try {
-        await signOut(auth);
-      } catch (e) {
-        // Ignore sign out errors
-      }
-
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
       console.error("Google Login Error:", err);
       
       if (err.code === 'auth/popup-blocked') {
-        setError("Your browser blocked the login popup. Please click 'Open in New Tab' below to login safely.");
+        setError("Your browser blocked the login popup. Please enable popups or try a different browser.");
       } else if (err.code === 'auth/popup-closed-by-user') {
         setError("Login window was closed. Please try again.");
-      } else if (err.code === 'auth/internal-error' || err.message?.includes('INTERNAL ASSERTION')) {
-        setError("Auth system got stuck due to iframe restrictions. Please use the 'Open in New Tab' button.");
       } else {
         setError(err.message);
       }
@@ -92,21 +79,9 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {isInIframe && !error && (
-          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] p-3 rounded-xl mb-6 text-center font-bold uppercase tracking-wider">
-            ⚠️ Running in Preview: Google Login works best in a new tab
-          </div>
-        )}
-
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-4 rounded-xl mb-6 flex flex-col gap-3">
             <p className="text-center font-medium">{error}</p>
-            <button 
-              onClick={openInNewTab}
-              className="bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
-            >
-              🚀 Open in New Tab to Fix
-            </button>
           </div>
         )}
 

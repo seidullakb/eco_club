@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Bootstrap global stats
   useEffect(() => {
     const bootstrapStats = async () => {
+      if (!user) return; // Only bootstrap if user is logged in
+      
       try {
         // Initialize impact stats with zeros if they don't exist
         await setDoc(doc(db, 'stats', 'impact'), {
@@ -55,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     bootstrapStats();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
