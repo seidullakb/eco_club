@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
@@ -31,29 +31,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userClass, setUserClassState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [classLoading, setClassLoading] = useState(false);
+  const bootstrappedRef = useRef<Set<string>>(new Set());
 
-  // Bootstrap global stats
   useEffect(() => {
+    if (!user || bootstrappedRef.current.has(user.uid)) return;
+    bootstrappedRef.current.add(user.uid);
     const bootstrapStats = async () => {
-      if (!user) return; // Only bootstrap if user is logged in
-      
       try {
-        // Initialize impact stats with zeros if they don't exist
-        await setDoc(doc(db, 'stats', 'impact'), {
-          total_kzt: 0,
-          recycled_kg: 0,
-          active_projects: 0,
-          trees_planted: 0,
-          co2_saved: 0
-        }, { merge: true });
-
-        // Initialize leaderboard meta if it doesn't exist
-        await setDoc(doc(db, 'stats', 'leaderboard_meta'), {
-          total_users: 0,
-          total_pickups: 0
-        }, { merge: true });
+        await setDoc(doc(db, 'stats', 'impact'), { total_kzt: 0, recycled_kg: 0, active_projects: 0, trees_planted: 0, co2_saved: 0 }, { merge: true });
+        await setDoc(doc(db, 'stats', 'leaderboard_meta'), { total_users: 0, total_pickups: 0 }, { merge: true });
       } catch (error) {
-        console.error("Error bootstrapping stats:", error);
+        console.error('Error bootstrapping stats:', error);
       }
     };
     bootstrapStats();
@@ -71,7 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserProfile(data);
             setUserClassState(data.class || null);
           } else {
-            // Create user profile if it doesn't exist
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
@@ -87,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserClassState(null);
           }
         } catch (error) {
-          console.error("Error fetching user profile:", error);
+          console.error('Error fetching user profile:', error);
           setUserClassState(null);
         } finally {
           setClassLoading(false);
@@ -103,24 +90,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setUserClass = async (className: string) => {
-    if (user) {
-      setClassLoading(true);
-      try {
-        const updateData = {
-          class: className,
-          updatedAt: new Date().toISOString(),
-        };
-        await setDoc(doc(db, 'users', user.uid), updateData, { merge: true });
-        setUserClassState(className);
-        if (userProfile) {
-          setUserProfile({ ...userProfile, ...updateData });
-        }
-      } catch (error) {
-        console.error("Error saving user class:", error);
-        throw error;
-      } finally {
-        setClassLoading(false);
-      }
+    if (!user) return;
+    setClassLoading(true);
+    try {
+      const updatedAt = new Date().toISOString();
+      await setDoc(doc(db, 'users', user.uid), { class: className, updatedAt }, { merge: true });
+      setUserClassState(className);
+      setUserProfile((prev) => prev ? { ...prev, class: className, updatedAt } : prev);
+    } catch (error) {
+      console.error('Error saving user class:', error);
+      throw error;
+    } finally {
+      setClassLoading(false);
     }
   };
 

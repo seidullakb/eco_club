@@ -14,6 +14,7 @@ import StatsScreen from './components/StatsScreen';
 import ContactScreen from './components/ContactScreen';
 import StartupScreen from './components/StartupScreen';
 import SettingsScreen from './components/SettingsScreen';
+import AdminNotifications from './components/AdminNotifications';
 import BottomNav from './components/BottomNav';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -23,14 +24,9 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
-  const { darkMode, t } = useTheme();
+  const { darkMode } = useTheme();
   const { userProfile } = useAuth();
 
-  const getBgColor = () => {
-    return 'bg-[var(--color-bg-main)]';
-  };
-
-  // Helper to change tab from within screens
   const navigateTo = (tab: string) => setActiveTab(tab);
 
   const pageVariants = {
@@ -41,10 +37,9 @@ export default function App() {
 
   return (
     <div className={`min-h-screen bg-[var(--color-bg-main)] ${darkMode ? 'dark' : ''} text-[var(--color-text-main)] font-sans overflow-hidden flex flex-col transition-colors duration-500 relative`}>
-      {/* Global Background Elements */}
       <div className={`bird-bg ${darkMode ? 'opacity-5 invert' : ''}`} />
       <div className={`fixed inset-0 pattern-overlay pointer-events-none opacity-20 ${darkMode ? 'invert' : ''}`} />
-      
+
       <ProtectedRoute>
         <div className={`flex-1 overflow-y-auto no-scrollbar relative max-w-md mx-auto w-full shadow-2xl ${darkMode ? 'bg-[var(--color-card-bg)]/50' : 'bg-white/10'} backdrop-blur-[2px]`}>
           <AnimatePresence mode="wait">
@@ -67,9 +62,12 @@ export default function App() {
               {activeTab === 'contact' && <ContactScreen onBack={() => setActiveTab('profile')} />}
               {activeTab === 'startup' && <StartupScreen onBack={() => setActiveTab('profile')} />}
               {activeTab === 'settings' && (
-                <SettingsScreen 
-                  onBack={() => setActiveTab('profile')} 
-                />
+                <SettingsScreen onBack={() => setActiveTab('profile')} />
+              )}
+              {activeTab === 'admin' && (
+                <div className="p-6">
+                  <AdminNotifications />
+                </div>
               )}
             </motion.div>
           </AnimatePresence>

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Settings, Recycle, ChevronDown, FileText, GlassWater, Upload, Camera, ShieldCheck, Loader2, Sparkles, BarChart3, DollarSign } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Settings, Recycle, ChevronDown, FileText, GlassWater, Upload, Camera, ShieldCheck, Loader2, Sparkles, BarChart3 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import CoinFlyAnimation from './CoinFlyAnimation';
 import { useCollectingAnimation } from '../hooks/useCollectingAnimation';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: string) => void }) {
@@ -19,20 +19,32 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
   const [showSuccess, setShowSuccess] = useState(false);
   const [weight, setWeight] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [recentEntries, setRecentEntries] = useState<any[]>([]);
+
   const { animate: triggerCoins, isAnimating: isCoinAnimating, startPos } = useCollectingAnimation();
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'submissions'),
+      orderBy('timestamp', 'desc'),
+      limit(5)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setRecentEntries(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   const handleUpload = async () => {
     setIsAnalyzing(true);
     setAiResult(null);
-    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-1.5-flash",
         contents: "Analyze this hypothetical recycling photo: A stack of old school notebooks and some cardboard boxes. Identify the primary material and give a short verification message.",
       });
-
       const text = response.text;
       setAiResult(text || "Verified: Paper & Cardboard detected.");
       setPhotoUploaded(true);
@@ -49,10 +61,8 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!weight || !photoUploaded || !user) return;
-
     setIsSubmitting(true);
     try {
-      // Save to submissions collection
       await addDoc(collection(db, 'submissions'), {
         userId: user.uid,
         userName: user.displayName || userProfile?.name || 'Anonymous',
@@ -63,13 +73,9 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
         createdAt: new Date().toISOString(),
         timestamp: serverTimestamp()
       });
-
-      // Get button position for animation start
       const rect = (e.target as HTMLFormElement).getBoundingClientRect();
       triggerCoins({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-
       setShowSuccess(true);
-
       setTimeout(() => {
         setShowSuccess(false);
         setWeight('');
@@ -88,25 +94,17 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
   return (
     <div className="pb-24 flex flex-col min-h-full font-display bg-[var(--color-bg-main)] text-[var(--color-text-main)] relative overflow-hidden">
       {isCoinAnimating && startPos && (
-        <CoinFlyAnimation 
-          startX={startPos.x} 
-          startY={startPos.y} 
-          count={15}
-        />
+        <CoinFlyAnimation startX={startPos.x} startY={startPos.y} count={15} />
       )}
       <AnimatePresence>
         {showSuccess && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-[var(--color-bg-main)]/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-6"
           >
-            <motion.div
-              initial={{ scale: 0.5, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="relative"
-            >
+            <motion.div initial={{ scale: 0.5, y: 20 }} animate={{ scale: 1, y: 0 }} className="relative">
               <div className="w-32 h-32 bg-[var(--color-accent)] rounded-[48px] flex items-center justify-center mb-6 shadow-2xl shadow-[var(--color-accent)]/40">
                 <ShieldCheck size={64} className="text-[var(--color-bg-main)]" />
               </div>
@@ -118,26 +116,18 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
         )}
       </AnimatePresence>
 
-      {/* Header */}
       <header className="flex items-center justify-between p-4 pt-12 bg-[var(--color-accent)] z-10 relative overflow-hidden">
         <div className="absolute inset-0 geometric-green opacity-10" />
-        <button 
-          onClick={() => onNavigate('home')}
-          className="text-[var(--color-bg-main)] hover:bg-[var(--color-bg-main)]/10 transition-colors flex items-center justify-center w-10 h-10 rounded-full relative z-10"
-        >
+        <button onClick={() => onNavigate('home')} className="text-[var(--color-bg-main)] hover:bg-[var(--color-bg-main)]/10 transition-colors flex items-center justify-center w-10 h-10 rounded-full relative z-10">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-lg font-black tracking-tight uppercase text-[var(--color-bg-main)] relative z-10">Submit Recycling</h1>
-        <button 
-          onClick={() => onNavigate('settings')}
-          className="text-[var(--color-bg-main)] hover:bg-[var(--color-bg-main)]/10 transition-colors flex items-center justify-center w-10 h-10 rounded-full relative z-10"
-        >
+        <button onClick={() => onNavigate('settings')} className="text-[var(--color-bg-main)] hover:bg-[var(--color-bg-main)]/10 transition-colors flex items-center justify-center w-10 h-10 rounded-full relative z-10">
           <Settings size={24} />
         </button>
       </header>
 
       <main className="flex-1 flex flex-col px-5 space-y-6 pt-6">
-        {/* Hero */}
         <div className="flex items-center gap-4 p-6 rounded-3xl bg-[var(--color-card-bg)] shadow-xl shadow-black/5 border border-[var(--color-border)] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 geometric-green opacity-5 -mr-8 -mt-8" />
           <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-bg-main)] shrink-0 shadow-lg shadow-[var(--color-accent)]/20">
@@ -149,15 +139,13 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
           </div>
         </div>
 
-        {/* Form */}
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Photo Verification Section */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-[var(--color-text-main)] uppercase tracking-widest ml-1 flex items-center gap-1">
               <Sparkles size={10} className="text-[var(--color-accent)]" />
               AI Sorting Assistant
             </label>
-            <motion.div 
+            <motion.div
               whileTap={{ scale: 0.98 }}
               onClick={handleUpload}
               className={`w-full min-h-[160px] rounded-[40px] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all p-6 text-center ${photoUploaded ? 'border-[var(--color-accent)] bg-[var(--color-card-bg)] shadow-xl shadow-[var(--color-accent)]/10' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/30 bg-[var(--color-card-bg)]/50'}`}
@@ -193,60 +181,24 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
             </motion.div>
           </div>
 
-          {/* Class Selection */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-[var(--color-text-main)] uppercase tracking-widest ml-1">Select Class</label>
-            <div className="relative group">
-              <select defaultValue="" className="w-full h-14 pl-4 pr-10 bg-[var(--color-card-bg)] text-[var(--color-text-main)] border border-[var(--color-border)] rounded-2xl focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] focus:outline-none appearance-none cursor-pointer transition-all hover:border-[var(--color-accent)]/30 shadow-sm font-bold">
-                <option disabled value="">Choose a class...</option>
-                <option value="7a">7-A</option>
-                <option value="7b">7-B</option>
-                <option value="9a">9-A</option>
-                <option value="10c">10-C</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-[var(--color-text-main)]">
-                <ChevronDown size={20} />
-              </div>
-            </div>
-          </div>
-
-          {/* Material Type */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-[var(--color-text-main)] uppercase tracking-widest ml-1">Material Type</label>
             <div className="grid grid-cols-2 gap-3">
-              <MaterialOption 
-                value="paper" 
-                label="Paper" 
-                icon={<FileText size={24} />} 
-                activeColor="blue" 
-                selected={selectedMaterial === 'paper'}
-                onClick={() => setSelectedMaterial('paper')}
-              />
-              <MaterialOption 
-                value="plastic" 
-                label="Plastic" 
-                icon={<GlassWater size={24} />} 
-                activeColor="orange" 
-                selected={selectedMaterial === 'plastic'}
-                onClick={() => setSelectedMaterial('plastic')}
-              />
+              <MaterialOption value="paper" label="Paper" icon={<FileText size={24} />} activeColor="blue" selected={selectedMaterial === 'paper'} onClick={() => setSelectedMaterial('paper')} />
+              <MaterialOption value="plastic" label="Plastic" icon={<GlassWater size={24} />} activeColor="orange" selected={selectedMaterial === 'plastic'} onClick={() => setSelectedMaterial('plastic')} />
             </div>
           </div>
 
-          {/* Weight Input */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-[var(--color-text-main)] uppercase tracking-widest ml-1">Weight (KG)</label>
-            <motion.div 
-              whileFocus={{ scale: 1.02 }}
-              className="relative flex items-center"
-            >
-              <input 
-                type="number" 
-                step="0.01" 
-                placeholder="0.00" 
+            <motion.div whileFocus={{ scale: 1.02 }} className="relative flex items-center">
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
-                className="w-full h-24 pl-6 pr-20 bg-[var(--color-card-bg)] text-5xl font-black text-[var(--color-text-main)] border-2 border-[var(--color-border)] rounded-[40px] focus:border-[var(--color-accent)] focus:ring-0 focus:outline-none placeholder:text-[var(--color-text-main)]/5 transition-all shadow-xl shadow-black/5 font-mono tracking-tighter" 
+                className="w-full h-24 pl-6 pr-20 bg-[var(--color-card-bg)] text-5xl font-black text-[var(--color-text-main)] border-2 border-[var(--color-border)] rounded-[40px] focus:border-[var(--color-accent)] focus:ring-0 focus:outline-none placeholder:text-[var(--color-text-main)]/5 transition-all shadow-xl shadow-black/5 font-mono tracking-tighter"
               />
               <div className="absolute right-0 h-full flex items-center pr-6 border-l border-[var(--color-border)] pl-6">
                 <span className="text-[var(--color-text-main)] font-black text-xl">KG</span>
@@ -254,9 +206,8 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
             </motion.div>
           </div>
 
-          {/* Submit Button */}
           <div className="pt-4">
-            <button 
+            <button
               type="submit"
               disabled={!photoUploaded || !weight}
               className={`group w-full relative overflow-hidden rounded-[40px] p-[1px] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2 focus:ring-offset-[var(--color-bg-main)] transition-all duration-300 ${photoUploaded && weight ? 'bg-[var(--color-accent)] shadow-2xl shadow-[var(--color-accent)]/30' : 'bg-[var(--color-border)] opacity-50 cursor-not-allowed'}`}
@@ -270,28 +221,27 @@ export default function SubmissionScreen({ onNavigate }: { onNavigate: (tab: str
           </div>
         </form>
 
-        {/* Recent Entries */}
+        {/* Recent Entries — live from Firestore */}
         <div className="mt-8 pt-6 border-t border-[var(--color-border)] pb-12">
           <h3 className="text-[10px] font-black text-[var(--color-text-secondary)] uppercase tracking-widest mb-4">Recent Verified Entries</h3>
-          <div className="space-y-3">
-            <RecentEntry 
-              icon={<FileText size={16} />} 
-              title="Class 9-A" 
-              subtitle="Paper • Just now" 
-              value="+12.5 kg" 
-              status="Verified" 
-            />
-            <RecentEntry 
-              icon={<GlassWater size={16} />} 
-              title="Class 8-B" 
-              subtitle="Plastic • 15m ago" 
-              value="+5.2 kg" 
-              status="Pending Tutor" 
-            />
-          </div>
+          {recentEntries.length === 0 ? (
+            <p className="text-[var(--color-text-main)]/20 text-xs font-bold uppercase tracking-widest text-center py-6">No entries yet</p>
+          ) : (
+            <div className="space-y-3">
+              {recentEntries.map((entry) => (
+                <RecentEntry
+                  key={entry.id}
+                  icon={entry.type === 'paper' ? <FileText size={16} /> : <GlassWater size={16} />}
+                  title={entry.userClass || entry.userName}
+                  subtitle={`${entry.type} • ${entry.createdAt ? new Date(entry.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Just now'}`}
+                  value={`+${entry.amountKg} kg`}
+                  status={entry.status === 'pending' ? 'Pending' : 'Verified'}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Startup Economics (Step 4) */}
         <div className="mt-8 p-6 rounded-[40px] bg-[var(--color-accent)] text-[var(--color-bg-main)] relative overflow-hidden shadow-2xl shadow-[var(--color-accent)]/30">
           <div className="absolute top-0 right-0 w-32 h-32 geometric-green opacity-10 -mr-8 -mt-8 rotate-12" />
           <div className="flex items-center gap-3 mb-4">
@@ -332,27 +282,17 @@ function MaterialOption({ value, label, icon, activeColor, selected, onClick }: 
     blue: "peer-checked:border-[var(--color-accent)] peer-checked:bg-[var(--color-accent)]/10",
     orange: "peer-checked:border-[var(--color-accent)] peer-checked:bg-[var(--color-accent)]/10",
   };
-
   const iconColors: any = {
     blue: "bg-[var(--color-accent)]/10 text-[var(--color-accent)]",
     orange: "bg-[var(--color-accent)]/10 text-[var(--color-accent)]",
   };
-
   const textColors: any = {
     blue: "text-[var(--color-accent)]",
     orange: "text-[var(--color-accent)]",
   };
-
   return (
     <label className="cursor-pointer group">
-      <input 
-        type="radio" 
-        name="material" 
-        value={value} 
-        className="peer sr-only" 
-        checked={selected}
-        onChange={onClick}
-      />
+      <input type="radio" name="material" value={value} className="peer sr-only" checked={selected} onChange={onClick} />
       <div className={`flex flex-col items-center justify-center py-6 rounded-[32px] border-2 border-transparent bg-[var(--color-card-bg)] shadow-sm transition-all duration-300 group-hover:shadow-md ${colors[activeColor]}`}>
         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform ${iconColors[activeColor]}`}>
           {icon}
